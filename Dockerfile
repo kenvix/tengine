@@ -55,6 +55,7 @@ ENV CONFIG "\
         --add-module=modules/ngx_http_upstream_check_module \
         --add-module=modules/headers-more-nginx-module-0.37 \
 	--add-module=modules/ngx_http_upstream_session_sticky_module \
+        --add-module=modules/ngx_brotli \
         "
 RUN     addgroup -S nginx \
         && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
@@ -79,6 +80,14 @@ RUN     addgroup -S nginx \
         && curl -L "https://github.com/openresty/headers-more-nginx-module/archive/v0.37.tar.gz" -o more.tar.gz \
         && tar -zxC /usr/src/tengine-$TENGINE_VERSION/modules -f more.tar.gz \
 	&& rm  more.tar.gz \
+        && cd modules \
+        && git clone --recurse-submodules -j8 https://github.com/google/ngx_brotli \
+        && cd ngx_brotli/deps/brotli \
+        && mkdir out && cd out  \
+        && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_INSTALL_PREFIX=./installed .. \
+        && cmake --build . --config Release --target brotlienc \
+        && cd ../../../.. \
+	&& cd .. \
 	&& ls -l /usr/src/tengine-$TENGINE_VERSION/modules \
 	&& ./configure $CONFIG --with-debug \
         && make -j$(getconf _NPROCESSORS_ONLN) \
